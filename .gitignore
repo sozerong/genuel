@@ -1,0 +1,4 @@
+.env
+node_modules
+.cloudtype/app.yaml
+.claude/settings.local.json

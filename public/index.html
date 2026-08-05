@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>그늘자리 — 버스 좌석 추천</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="theme-color" content="#101A24">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="그늘자리">
+</head>
+<body>
+<div class="app">
+
+  <div class="hd">
+    <span class="nm">그늘자리</span>
+    <span class="tag">버스 좌석 추천</span>
+    <span class="clock mono" id="clock"></span>
+  </div>
+
+  <div class="panel">
+    <div class="fld">
+      <label>도시</label>
+      <select id="city"></select>
+    </div>
+    <div class="fld">
+      <label>노선번호</label>
+      <div class="searchrow">
+        <input type="text" id="routeNo" placeholder="예: 400" inputmode="numeric">
+        <button id="btnSearch" type="button">검색</button>
+      </div>
+    </div>
+    <div class="fld">
+      <label>노선</label>
+      <select id="route"></select>
+    </div>
+    <div class="two">
+      <div class="fld"><label>타는 곳</label><select id="from"></select></div>
+      <div class="fld"><label>내리는 곳</label><select id="to"></select></div>
+    </div>
+    <div class="two">
+      <div class="fld"><label>날짜</label><input type="date" id="date"></div>
+      <div class="fld"><label>승차 시각</label><input type="time" id="time" step="300"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:2px">
+      <button class="nowbtn" id="btnNow">지금</button>
+      <button class="nowbtn" id="btn16">오후 4시</button>
+      <button class="nowbtn" id="btn8">오전 8시</button>
+    </div>
+    <button class="go" id="btnGo">자리 찾기</button>
+    <div class="status mono" id="status" role="status" aria-live="polite"></div>
+  </div>
+
+  <div id="result" class="hidden">
+    <div class="verdict">
+      <div class="k" id="vk">추천 좌석</div>
+      <div class="big" id="vbig"></div>
+      <div class="sm" id="vsm"></div>
+    </div>
+
+    <div class="stage">
+      <svg id="seat" viewBox="0 0 400 380" role="img" aria-label="선택한 구간의 태양 위치와 좌석 배치"></svg>
+      <div class="cap" id="seatCap"></div>
+    </div>
+
+    <div class="sec-t">정류장별 햇빛</div>
+    <div class="tl">
+      <div class="tlhead"><span class="l">← 왼쪽</span><span class="c">구간</span><span class="r">오른쪽 →</span></div>
+      <div id="timeline"></div>
+    </div>
+
+    <div class="foot" id="foot"></div>
+  </div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

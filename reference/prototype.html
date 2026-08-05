@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>그늘자리 — 버스 좌석 추천</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#101A24; --slate:#33485E; --paper:#E9EDF1; --card:#FFFFFF;
+  --line:#C9D3DB; --sun:#FFB223; --hot:#EF6C1A; --shade:#2F6C86; --shade-lt:#5F9BB2;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+.mono{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.app{max-width:460px;margin:0 auto;padding:0 16px 60px}
+
+/* header */
+.hd{display:flex;align-items:baseline;gap:10px;padding:20px 2px 16px}
+.hd .nm{font-family:"Black Han Sans",sans-serif;font-size:21px}
+.hd .tag{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.13em;color:var(--slate);text-transform:uppercase}
+.hd .clock{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--slate)}
+
+/* search */
+.panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px}
+.fld{margin-bottom:10px}
+.fld:last-child{margin-bottom:0}
+.fld label{display:block;font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.13em;color:#7A8C9B;text-transform:uppercase;margin-bottom:4px}
+select,input[type=time],input[type=date]{
+  width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#FBFCFD;
+  font-family:"IBM Plex Sans KR",sans-serif;font-size:15px;color:var(--ink);appearance:none;
+}
+input[type=time],input[type=date]{font-family:"IBM Plex Mono",monospace}
+select:focus,input:focus{outline:2px solid var(--shade);outline-offset:1px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.go{width:100%;margin-top:12px;padding:15px;border:0;border-radius:11px;background:var(--sun);color:#241603;
+  font-family:"IBM Plex Sans KR",sans-serif;font-weight:700;font-size:15.5px;cursor:pointer}
+.go:active{transform:translateY(1px)}
+.nowbtn{background:none;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:11.5px;
+  color:var(--slate);cursor:pointer;font-family:"IBM Plex Sans KR",sans-serif}
+
+/* verdict */
+.verdict{background:var(--ink);border-radius:16px;padding:18px;color:#DCE5EC;margin-bottom:12px}
+.verdict .k{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.13em;color:#7E93A5;text-transform:uppercase}
+.verdict .big{font-family:"Black Han Sans",sans-serif;font-size:32px;line-height:1.12;color:#F4F8FB;margin:6px 0 4px}
+.verdict .big em{font-style:normal;color:var(--sun)}
+.verdict .big em.cool{color:var(--shade-lt)}
+.verdict .sm{font-size:12.5px;color:#9FB2C1}
+.verdict .sm b{color:var(--sun);font-weight:600}
+
+/* blocks */
+.blocks{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.blk{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.blk .bar{width:4px;align-self:stretch;border-radius:2px;flex:none}
+.blk .tx{flex:1;min-width:0}
+.blk .tx .rg{font-size:15px;font-weight:700}
+.blk .tx .st{font-size:11.5px;color:#8494A2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.blk .tm{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--slate);text-align:right;flex:none}
+
+/* seat stage */
+.stage{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:8px 8px 12px;margin-bottom:14px}
+#seat{width:100%;height:auto;display:block}
+.stage .cap{text-align:center;font-size:12px;color:var(--slate);padding:0 12px}
+.stage .cap b{color:var(--ink);font-weight:600}
+
+/* timeline */
+.sec-t{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.13em;color:#7A8C9B;text-transform:uppercase;margin:20px 0 9px}
+.tl{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 12px}
+.tlhead{display:flex;font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.1em;color:#9AA8B4;text-transform:uppercase;margin-bottom:6px}
+.tlhead .l{flex:1;text-align:right;padding-right:6px}
+.tlhead .c{width:118px;text-align:center}
+.tlhead .r{flex:1;padding-left:6px}
+.strow{display:flex;align-items:center}
+.strow .l,.strow .r{flex:1}
+.strow .c{width:118px;display:flex;align-items:center;justify-content:center;gap:6px;position:relative}
+.strow .c::before{content:"";position:absolute;top:-30px;bottom:-30px;left:50%;margin-left:-1.5px;width:3px;background:var(--line)}
+.strow .r{font-family:"IBM Plex Mono",monospace;font-size:10px;color:#9AA8B4;padding-left:6px}
+.dot{width:10px;height:10px;border-radius:50%;background:#fff;border:3px solid var(--slate);z-index:1;flex:none}
+.dot.term{background:var(--ink);border-color:var(--ink)}
+.nm{font-size:12px;font-weight:500;background:var(--card);padding:0 4px;z-index:1;white-space:nowrap;
+  max-width:96px;overflow:hidden;text-overflow:ellipsis}
+.seg{display:flex;align-items:center;height:46px;cursor:pointer;border-radius:8px}
+.seg:hover{background:#F3F6F8}
+.seg.on{background:#EAF2F6;box-shadow:inset 0 0 0 1.5px var(--shade)}
+.seg .bl,.seg .br{flex:1;display:flex;align-items:center}
+.seg .bl{justify-content:flex-end;padding-right:6px}
+.seg .br{padding-left:6px}
+.seg i{display:block;height:14px;border-radius:3px;min-width:2px}
+.seg .sp{width:118px;text-align:center;font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:#9AA8B4;position:relative}
+.seg .sp::before{content:"";position:absolute;top:-4px;bottom:-4px;left:50%;margin-left:-1.5px;width:3px;background:var(--line)}
+.seg .sp span{position:relative;background:var(--card);padding:2px 3px}
+.seg.on .sp span{background:#EAF2F6}
+
+.note{background:#FFF3DC;border:1px solid #F2D9A8;border-radius:11px;padding:10px 12px;font-size:12px;color:#6B4A0E;margin:12px 0}
+.note b{font-weight:700}
+.foot{font-size:11.5px;color:#8494A2;line-height:1.7;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.foot b{color:var(--shade);font-weight:600}
+.hidden{display:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="hd">
+    <span class="nm">그늘자리</span>
+    <span class="tag">천안·아산</span>
+    <span class="clock mono" id="clock"></span>
+  </div>
+
+  <div class="panel">
+    <div class="fld">
+      <label>노선</label>
+      <select id="route"></select>
+    </div>
+    <div class="two">
+      <div class="fld"><label>타는 곳</label><select id="from"></select></div>
+      <div class="fld"><label>내리는 곳</label><select id="to"></select></div>
+    </div>
+    <div class="two">
+      <div class="fld"><label>날짜</label><input type="date" id="date"></div>
+      <div class="fld"><label>승차 시각</label><input type="time" id="time" step="300"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:2px">
+      <button class="nowbtn" id="btnNow">지금</button>
+      <button class="nowbtn" id="btn16">오후 4시</button>
+      <button class="nowbtn" id="btn8">오전 8시</button>
+    </div>
+    <button class="go" id="btnGo">자리 찾기</button>
+  </div>
+
+  <div id="result" class="hidden">
+    <div class="verdict">
+      <div class="k" id="vk">추천 좌석</div>
+      <div class="big" id="vbig"></div>
+      <div class="sm" id="vsm"></div>
+    </div>
+
+    <div class="blocks" id="blocks"></div>
+
+    <div class="stage">
+      <svg id="seat" viewBox="0 0 400 380" role="img" aria-label="선택한 구간의 태양 위치와 좌석 배치"></svg>
+      <div class="cap" id="seatCap"></div>
+    </div>
+
+    <div class="sec-t">정류장별 햇빛</div>
+    <div class="tl">
+      <div class="tlhead"><span class="l">← 왼쪽</span><span class="c">구간</span><span class="r">오른쪽 →</span></div>
+      <div id="timeline"></div>
+    </div>
+
+    <div id="switchNote"></div>
+
+    <div class="foot" id="foot"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+/* ============================================================
+   1. 노선 데이터
+   좌표는 주요 지점 기준 근사값입니다. TAGO(공공데이터포털)
+   버스노선정보 API의 정류장 목록으로 그대로 교체 가능합니다.
+   ============================================================ */
+const P = {
+  천안역:[36.8095,127.1487], 봉명역:[36.8043,127.1398], 쌍용역:[36.7987,127.1288],
+  아산역:[36.7943,127.1044], 배방역:[36.7893,127.1160], 천안시청:[36.8151,127.1139],
+  불당동:[36.8179,127.1063], 백석동:[36.8062,127.1180], 신부동터미널:[36.8196,127.1560],
+  두정동:[36.8280,127.1360], 두정역:[36.8298,127.1349], 성정동:[36.8180,127.1420],
+  직산역:[36.8790,127.1490], 부대동:[36.8600,127.1480], 성환역:[36.9160,127.1600],
+  성환읍:[36.9153,127.1585], 안서동:[36.8360,127.1650], 단국대:[36.8380,127.1690],
+  목천읍:[36.8290,127.2000], 독립기념관:[36.8330,127.2350], 병천:[36.8590,127.2440],
+  신방동:[36.7870,127.1310], 청수동:[36.7920,127.1470], 온양온천역:[36.7802,127.0040],
+  탕정면:[36.7960,127.0700], 용곡동:[36.8080,127.1520]
+};
+const ROUTES = [
+  { no:"400", dir:"천안역 → 천안아산역",
+    stops:["천안역","봉명역","성정동","천안시청","백석동","쌍용역","불당동","아산역"] },
+  { no:"400", dir:"천안아산역 → 천안역",
+    stops:["아산역","불당동","쌍용역","백석동","천안시청","성정동","봉명역","천안역"] },
+  { no:"24", dir:"천안역 → 성환역",
+    stops:["천안역","용곡동","두정동","두정역","부대동","직산역","성환읍","성환역"] },
+  { no:"24", dir:"성환역 → 천안역",
+    stops:["성환역","성환읍","직산역","부대동","두정역","두정동","용곡동","천안역"] },
+  { no:"12", dir:"신부동터미널 → 단국대",
+    stops:["신부동터미널","두정동","성정동","안서동","단국대"] },
+  { no:"400-2", dir:"천안역 → 온양온천역",
+    stops:["천안역","봉명역","쌍용역","배방역","탕정면","온양온천역"] },
+  { no:"400-2", dir:"온양온천역 → 천안역",
+    stops:["온양온천역","탕정면","배방역","쌍용역","봉명역","천안역"] },
+  { no:"810", dir:"천안역 → 독립기념관",
+    stops:["천안역","용곡동","안서동","목천읍","독립기념관"] },
+  { no:"810", dir:"독립기념관 → 천안역",
+    stops:["독립기념관","목천읍","안서동","용곡동","천안역"] },
+  { no:"60", dir:"신방동 → 천안역",
+    stops:["신방동","쌍용역","청수동","봉명역","천안역"] }
+];
+
+/* ============================================================
+   2. 태양 위치 (NOAA 저정밀 알고리즘, 오차 ±0.02°)
+   ============================================================ */
+const D2R=Math.PI/180, R2D=180/Math.PI;
+function sunPos(utcMs, lat, lon){
+  const n = utcMs/86400000 + 2440587.5 - 2451545.0;      // J2000 기준 일수
+  const L = (280.460 + 0.9856474*n) % 360;               // 평균황경
+  const g = ((357.528 + 0.9856003*n) % 360) * D2R;       // 평균근점이각
+  const lam = (L + 1.915*Math.sin(g) + 0.020*Math.sin(2*g)) * D2R;
+  const eps = (23.439 - 0.0000004*n) * D2R;              // 황도경사
+  const ra  = Math.atan2(Math.cos(eps)*Math.sin(lam), Math.cos(lam));
+  const dec = Math.asin(Math.sin(eps)*Math.sin(lam));
+  const gmst = (18.697374558 + 24.06570982441908*n) % 24;
+  const lmst = gmst*15 + lon;
+  let H = (lmst - ra*R2D);
+  H = (((H + 180) % 360) + 360) % 360 - 180;
+  const Hr = H*D2R, la = lat*D2R;
+  const alt = Math.asin(Math.sin(la)*Math.sin(dec) + Math.cos(la)*Math.cos(dec)*Math.cos(Hr))*R2D;
+  let az = Math.atan2(-Math.sin(Hr), Math.tan(dec)*Math.cos(la) - Math.sin(la)*Math.cos(Hr))*R2D;
+  az = (az+360)%360;
+  return {alt, az};
+}
+/* KST 벽시계 → UTC ms */
+const kstToUtc = (y,mo,d,h,mi)=> Date.UTC(y,mo-1,d,h-9,mi);
+
+/* ============================================================
+   3. 노선 기하 — 방위각 · 거리 · 소요시간
+   ============================================================ */
+function bearing(a,b){
+  const φ1=a[0]*D2R, φ2=b[0]*D2R, Δλ=(b[1]-a[1])*D2R;
+  const y=Math.sin(Δλ)*Math.cos(φ2);
+  const x=Math.cos(φ1)*Math.sin(φ2)-Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
+  return (Math.atan2(y,x)*R2D+360)%360;
+}
+function distKm(a,b){
+  const R=6371, dφ=(b[0]-a[0])*D2R, dλ=(b[1]-a[1])*D2R;
+  const h=Math.sin(dφ/2)**2+Math.cos(a[0]*D2R)*Math.cos(b[0]*D2R)*Math.sin(dλ/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+const SPEED=21, DWELL=0.5;   // km/h, 정차 분
+
+function buildSegments(stops, y,mo,d, h,mi){
+  const segs=[]; let t=0;
+  for(let i=0;i<stops.length-1;i++){
+    const a=P[stops[i]], b=P[stops[i+1]];
+    const km=distKm(a,b);
+    const dur=km/SPEED*60 + DWELL;
+    const brg=bearing(a,b);
+    const mid=[(a[0]+b[0])/2,(a[1]+b[1])/2];
+    const {alt,az}=sunPos(kstToUtc(y,mo,d,h,mi)+ (t+dur/2)*60000, mid[0], mid[1]);
+    const dl=(az-brg)*D2R;
+    const sinD=Math.sin(dl), cosD=Math.cos(dl);
+    const lat = alt>0 ? Math.abs(sinD)*Math.cos(alt*D2R) : 0;   // 측면 유입 강도
+    segs.push({
+      from:stops[i], to:stops[i+1], brg, km, dur,
+      start:t, end:t+dur, alt, az, sinD, cosD,
+      inten:lat,
+      EL: alt>0 ? dur*Math.max(0,-sinD)*Math.cos(alt*D2R) : 0,
+      ER: alt>0 ? dur*Math.max(0, sinD)*Math.cos(alt*D2R) : 0
+    });
+    t+=dur;
+  }
+  return segs;
+}
+
+/* ============================================================
+   4. 판정
+   ============================================================ */
+const THRESH=0.13;   // 이보다 약하면 "차이 없음"
+function label(s){
+  if(s.alt<=0) return "none";
+  if(s.inten<THRESH) return "none";
+  return s.sinD>0 ? "left" : "right";   // 빛이 드는 반대쪽에 앉기
+}
+function groupBlocks(segs){
+  const out=[];
+  segs.forEach((s,i)=>{
+    const lb=label(s);
+    const last=out[out.length-1];
+    if(last && last.lb===lb) { last.segs.push(s); }
+    else out.push({lb, segs:[s]});
+  });
+  return out;
+}
+
+/* ============================================================
+   5. 좌석도 렌더
+   ============================================================ */
+const NS="http://www.w3.org/2000/svg";
+const mk=(n,a)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);return e;};
+const hx=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+const mix=(a,b,t)=>{const A=hx(a),B=hx(b);return`rgb(${A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(",")})`;};
+const SUN="#FFB223", HOT="#EF6C1A", SHADE="#2F6C86";
+const ROWS=[-56,-34,-12,10,32,54];
+const COLS=[{x:-34,side:-1,win:1},{x:-16,side:-1,win:0},{x:16,side:1,win:0},{x:34,side:1,win:1}];
+
+function seatE(c,ri,sinD,cosD,alt){
+  if(alt<=0) return 0;
+  const lat=Math.abs(sinD)*Math.cos(alt*D2R);
+  const lit=Math.sign(sinD)===c.side;
+  let e = lit ? (c.win?lat:lat*0.5) : (c.win?lat*0.05:lat*0.14);
+  if(cosD>0.6 && ri<2) e=Math.max(e, cosD*Math.cos(alt*D2R)*(ri===0?0.85:0.55));
+  return Math.min(1,e);
+}
+
+function drawSeat(svg,s){
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  const g=mk("g",{transform:"translate(200,196) scale(0.92)"});
+  const {sinD=0,cosD=0,alt=0,az=null,brg=0}=s||{};
+  const body="#FFFFFF", stroke="#C9D3DB", seatBase="#DFE6EC", glass="#EDF1F4";
+
+  /* 태양 + 광선 */
+  if(alt>0 && az!==null){
+    const defs=mk("defs");
+    const rg=mk("radialGradient",{id:"gl",cx:"50%",cy:"50%",r:"50%"});
+    rg.appendChild(mk("stop",{offset:"0%","stop-color":SUN,"stop-opacity":".5"}));
+    rg.appendChild(mk("stop",{offset:"100%","stop-color":SUN,"stop-opacity":"0"}));
+    defs.appendChild(rg); g.appendChild(defs);
+    const R=150, d=(az-brg)*D2R;
+    const sx=Math.sin(d)*R, sy=-Math.cos(d)*R;
+    const pp=[Math.cos(d),Math.sin(d)];
+    for(let k=-3;k<=3;k++){
+      const o=k*22;
+      g.appendChild(mk("line",{x1:sx+pp[0]*o,y1:sy+pp[1]*o,x2:sx*.13+pp[0]*o,y2:sy*.13+pp[1]*o,
+        stroke:SUN,"stroke-width":1.4,"stroke-opacity":.28,"stroke-linecap":"round"}));
+    }
+    g.appendChild(mk("circle",{cx:0,cy:0,r:R,fill:"none",stroke:"#D6DEE5","stroke-width":1,"stroke-dasharray":"2 6"}));
+    g.appendChild(mk("circle",{cx:sx,cy:sy,r:44,fill:"url(#gl)"}));
+    g.appendChild(mk("circle",{cx:sx,cy:sy,r:12,fill:SUN}));
+    /* 고도 표기 */
+    g.appendChild(mk("text",{x:sx,y:sy+30,"text-anchor":"middle",fill:"#8A6410",
+      "font-family":"IBM Plex Mono, monospace","font-size":"10"})).textContent=`고도 ${Math.round(alt)}°`;
+  }
+
+  g.appendChild(mk("rect",{x:-45,y:-98,width:90,height:196,rx:15,fill:body,stroke:stroke,"stroke-width":1.5}));
+  [[-48.5,-1],[43.5,1]].forEach(([x,side])=>{
+    const lit=Math.sign(sinD)===side && alt>0;
+    g.appendChild(mk("rect",{x,y:-64,width:5,height:148,rx:2.5,
+      fill: lit? mix(glass,SUN,Math.min(.9,Math.abs(sinD)*Math.cos(alt*D2R)+.25)) : glass}));
+  });
+  g.appendChild(mk("rect",{x:-36,y:-95,width:72,height:8,rx:4,
+    fill:(cosD>0.6&&alt>0)?mix(glass,SUN,.75):glass}));
+  g.appendChild(mk("path",{d:"M0,-120 L7,-107 L0,-111 L-7,-107 Z",fill:"#8494A2"}));
+  g.appendChild(mk("text",{x:0,y:-128,"text-anchor":"middle",fill:"#8494A2",
+    "font-family":"IBM Plex Mono, monospace","font-size":"9.5","letter-spacing":"1.4"})).textContent="진행";
+  g.appendChild(mk("rect",{x:-40,y:-82,width:16,height:15,rx:4,fill:seatBase,opacity:.55}));
+  g.appendChild(mk("rect",{x:43,y:-80,width:3,height:12,rx:1.5,fill:"#A8B6C2"}));
+  g.appendChild(mk("rect",{x:43,y:18,width:3,height:14,rx:1.5,fill:"#A8B6C2"}));
+
+  let best=null; const cells=[];
+  ROWS.forEach((y,ri)=>COLS.forEach(c=>{
+    const e=seatE(c,ri,sinD,cosD,alt);
+    cells.push({x:c.x,y,e});
+    if(c.win&&(!best||e<best.e)) best={x:c.x,y,e,side:c.side};
+  }));
+  [-34,-17,0,17,34].forEach(x=>{
+    const c={x,side:x<0?-1:(x>0?1:0),win:Math.abs(x)>30};
+    cells.push({x,y:78,e:seatE(c,5,sinD,cosD,alt)});
+  });
+  cells.forEach(s2=>{
+    const f = s2.e<0.03 ? seatBase : (s2.e<0.5 ? mix(seatBase,SUN,s2.e*2) : mix(SUN,HOT,(s2.e-.5)*2));
+    g.appendChild(mk("rect",{x:s2.x-8,y:s2.y-8,width:16,height:16,rx:4.5,fill:f,stroke:"#F4F7F9","stroke-width":1}));
+  });
+  if(best && alt>0 && Math.abs(sinD)*Math.cos(alt*D2R)>=THRESH){
+    ROWS.slice(1,4).forEach(y=>g.appendChild(mk("rect",{x:best.x-11,y:y-11,width:22,height:22,rx:7,
+      fill:"none",stroke:SHADE,"stroke-width":2})));
+    g.appendChild(mk("text",{x:best.side<0?-72:72,y:-4,"text-anchor":"middle",fill:SHADE,
+      "font-family":"IBM Plex Sans KR, sans-serif","font-size":"12","font-weight":"700"})).textContent="여기";
+  }
+  svg.appendChild(g);
+}
+
+/* ============================================================
+   6. UI 배선
+   ============================================================ */
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,"0");
+const fmt=(base,minOff)=>{const t=new Date(base+minOff*60000);
+  return pad(t.getHours())+":"+pad(t.getMinutes());};
+const DIRW=["북","북동","동","남동","남","남서","서","북서"];
+const compass=b=>DIRW[Math.round(b/45)%8];
+
+/* KST 현재 시각 */
+function nowKST(){
+  const p=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",
+    day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(new Date());
+  const o={}; p.forEach(x=>o[x.type]=x.value);
+  return {y:+o.year,mo:+o.month,d:+o.day,h:+(o.hour==="24"?0:o.hour),mi:+o.minute};
+}
+const N=nowKST();
+$("clock").textContent=`${pad(N.h)}:${pad(N.mi)} KST`;
+$("date").value=`${N.y}-${pad(N.mo)}-${pad(N.d)}`;
+$("time").value=`${pad(N.h)}:${pad(N.mi)}`;
+
+ROUTES.forEach((r,i)=>{
+  const o=document.createElement("option");
+  o.value=i; o.textContent=`${r.no}번 · ${r.dir}`;
+  $("route").appendChild(o);
+});
+function fillStops(){
+  const r=ROUTES[+$("route").value];
+  $("from").innerHTML=""; $("to").innerHTML="";
+  r.stops.forEach((s,i)=>{
+    const a=document.createElement("option"); a.value=i; a.textContent=s; $("from").appendChild(a);
+    const b=document.createElement("option"); b.value=i; b.textContent=s; $("to").appendChild(b);
+  });
+  $("from").value=0; $("to").value=r.stops.length-1;
+}
+$("route").addEventListener("change",fillStops);
+fillStops();
+
+$("btnNow").onclick=()=>{const n=nowKST();$("date").value=`${n.y}-${pad(n.mo)}-${pad(n.d)}`;$("time").value=`${pad(n.h)}:${pad(n.mi)}`;run();};
+$("btn16").onclick=()=>{$("time").value="16:00";run();};
+$("btn8").onclick=()=>{$("time").value="08:00";run();};
+$("btnGo").onclick=run;
+
+let SEGS=[], SEL=0;
+
+function run(){
+  const r=ROUTES[+$("route").value];
+  let i0=+$("from").value, i1=+$("to").value;
+  if(i1<=i0){ i1=r.stops.length-1; i0=0; $("from").value=0; $("to").value=i1; }
+  const stops=r.stops.slice(i0,i1+1);
+  const [Y,MO,D]=$("date").value.split("-").map(Number);
+  const [H,MI]=$("time").value.split(":").map(Number);
+  const base=kstToUtc(Y,MO,D,H,MI)+9*3600000;   // 표시용(로컬 포맷 회피)
+
+  SEGS=buildSegments(stops,Y,MO,D,H,MI);
+  const total=SEGS.reduce((a,s)=>a+s.dur,0);
+  const EL=SEGS.reduce((a,s)=>a+s.EL,0), ER=SEGS.reduce((a,s)=>a+s.ER,0);
+  const blocks=groupBlocks(SEGS);
+
+  /* --- 판정 문구 --- */
+  const maxE=Math.max(EL,ER), diff=maxE>0?Math.abs(EL-ER)/maxE:0;
+  const night=SEGS.every(s=>s.alt<=0);
+  const bigEl=$("vbig"), smEl=$("vsm");
+  if(night){
+    $("vk").textContent="해 없음";
+    bigEl.innerHTML="아무 데나";
+    smEl.textContent="해가 지평선 아래입니다. 좌석 상관 없습니다.";
+  } else if(diff<0.15){
+    $("vk").textContent="판정";
+    bigEl.innerHTML="<em class='cool'>차이 없음</em>";
+    smEl.innerHTML=`좌우 노출 차이 ${Math.round(diff*100)}% — 추천할 만큼 다르지 않습니다.`;
+  } else {
+    const side = EL<ER ? "왼쪽" : "오른쪽";
+    $("vk").textContent="추천 좌석";
+    bigEl.innerHTML=`<em class='cool'>${side}</em> 창가`;
+    const less=Math.round((1-Math.min(EL,ER)/maxE)*100);
+    smEl.innerHTML=`반대편보다 햇빛 <b>${less}% 적음</b> · 총 ${Math.round(total)}분`;
+  }
+
+  /* --- 구간 블록 --- */
+  const bc=$("blocks"); bc.innerHTML="";
+  blocks.forEach(b=>{
+    const s0=b.segs[0], s1=b.segs[b.segs.length-1];
+    const div=document.createElement("div"); div.className="blk";
+    const col = b.lb==="none" ? "#C9D3DB" : SHADE;
+    const txt = b.lb==="none" ? "아무 자리나" : (b.lb==="left"?"왼쪽에 앉기":"오른쪽에 앉기");
+    const sub = b.lb==="none" ? "햇빛 약함" : `${s0.from} 방면 ${compass(s0.brg)}쪽으로 주행`;
+    div.innerHTML=`<span class="bar" style="background:${col}"></span>
+      <span class="tx"><span class="rg">${txt}</span><span class="st">${s0.from} → ${s1.to} · ${sub}</span></span>
+      <span class="tm">${fmt(base,s0.start)}<br>${fmt(base,s1.end)}</span>`;
+    bc.appendChild(div);
+  });
+
+  /* --- 타임라인 --- */
+  const tl=$("timeline"); tl.innerHTML="";
+  stops.forEach((st,i)=>{
+    const row=document.createElement("div"); row.className="strow";
+    const tmin = i===0 ? 0 : SEGS[i-1].end;
+    row.innerHTML=`<span class="l"></span>
+      <span class="c"><span class="dot ${(i===0||i===stops.length-1)?'term':''}"></span><span class="nm">${st}</span></span>
+      <span class="r">${fmt(base,tmin)}</span>`;
+    tl.appendChild(row);
+    if(i<SEGS.length){
+      const s=SEGS[i];
+      const seg=document.createElement("div"); seg.className="seg"+(i===SEL?" on":"");
+      const wl=Math.round(Math.max(0,-s.sinD)*Math.cos(Math.max(0,s.alt)*D2R)*100);
+      const wr=Math.round(Math.max(0, s.sinD)*Math.cos(Math.max(0,s.alt)*D2R)*100);
+      const grad=c=>`linear-gradient(${c},${SUN},${HOT})`;
+      seg.innerHTML=`<span class="bl"><i style="width:${Math.max(2,wl)}%;background:${wl>8?grad("270deg"):"#DDE4EA"}"></i></span>
+        <span class="sp"><span>${compass(s.brg)} · ${Math.round(s.dur)}분</span></span>
+        <span class="br"><i style="width:${Math.max(2,wr)}%;background:${wr>8?grad("90deg"):"#DDE4EA"}"></i></span>`;
+      seg.onclick=()=>{SEL=i;run();};
+      tl.appendChild(seg);
+    }
+  });
+
+  /* --- 좌석도 --- */
+  if(SEL>=SEGS.length) SEL=0;
+  const s=SEGS[SEL];
+  drawSeat($("seat"),s);
+  $("seatCap").innerHTML=`<b>${s.from} → ${s.to}</b> · 진행 ${Math.round(s.brg)}°(${compass(s.brg)}) · `
+    +`태양 방위 ${Math.round(s.az)}° 고도 ${Math.round(s.alt)}° · ${fmt(base,s.start)}~${fmt(base,s.end)}`;
+
+  /* --- 자리 이동 안내 --- */
+  const sn=$("switchNote"); sn.innerHTML="";
+  const real=blocks.filter(b=>b.lb!=="none");
+  const sides=[...new Set(real.map(b=>b.lb))];
+  if(sides.length>1){
+    const opt=blocks.reduce((a,b)=>a+b.segs.reduce((x,s2)=>x+(b.lb==="left"?s2.EL:b.lb==="right"?s2.ER:Math.min(s2.EL,s2.ER)),0),0);
+    const stay=Math.min(EL,ER);
+    const save=stay>0?Math.round((1-opt/stay)*100):0;
+    const sw=real[1].segs[0].from;
+    sn.innerHTML=`<div class="note">↺ <b>${sw}</b>에서 반대편으로 옮기면 햇빛을 ${save}% 더 피합니다. 한 자리로 계속 갈 거면 위의 추천을 따르세요.</div>`;
+  }
+
+  /* --- 각주 --- */
+  const lowAlt=SEGS.filter(s2=>s2.alt>0&&s2.alt<20).length;
+  $("foot").innerHTML=
+    `계산: 정류장 좌표로 구간 방위각을 구하고, 승차 시각 기준 각 구간 통과 시점의 태양 방위·고도를 천문 계산해 |sinΔ|·cos(고도)로 측면 유입량을 냅니다. 평균 21km/h로 주행 시간을 추정합니다.<br><br>`
+    +(lowAlt? `<b>주의</b> — 태양 고도 20° 미만 구간이 ${lowAlt}개 있습니다. 건물 그림자에 가려 실제로는 예측보다 덜 뜨거울 수 있습니다.<br><br>`:"")
+    +`구름은 반영하지 않았습니다. 좌표는 주요 지점 근사값이라 실제 노선의 세부 굴곡과 다를 수 있습니다.`;
+
+  $("result").classList.remove("hidden");
+}
+
+run();
+})();
+</script>
+</body>
+</html>
