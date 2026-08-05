@@ -58,6 +58,7 @@ select:focus,input:focus{outline:2px solid var(--shade);outline-offset:1px}
 .sec-t{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.13em;color:#7A8C9B;text-transform:uppercase;margin:20px 0 9px}
 .tl{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 12px}
 .tlhead{display:flex;font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.1em;color:#9AA8B4;text-transform:uppercase;margin-bottom:6px}
+#timeline{max-height:44vh;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;scrollbar-gutter:stable}
 .tlhead .l{flex:1;text-align:right;padding-right:6px}
 .tlhead .c{width:118px;text-align:center}
 .tlhead .r{flex:1;padding-left:6px}
