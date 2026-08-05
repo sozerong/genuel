@@ -37,8 +37,12 @@ function tickClock() {
 tickClock();
 setInterval(tickClock, 30000);
 
+// 앱인토스 미니앱은 이 프론트를 토스 자체 도메인에서 띄우므로 상대경로 fetch가 안 통한다.
+// 백엔드 프록시(Cloudtype 배포)를 절대주소로 호출한다 — CORS는 이미 열려 있다.
+const API_BASE = "https://port-0-genuel-mp2oa3fkd20c6566.sel3.cloudtype.app";
+
 async function api(pathAndQuery) {
-  const res = await fetch(pathAndQuery);
+  const res = await fetch(API_BASE + pathAndQuery);
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new Error(data?.error || `요청 실패 (${res.status})`);
   return data;
@@ -52,6 +56,22 @@ function setStatus(msg, isError = false) {
 
 let CITIES = [], ROUTES = [], STOPS = [];
 
+// 마지막으로 조회한 노선을 기억한다 — 미니앱을 껐다 켜도 그대로 이어서 보게 한다.
+const SAVE_KEY = "geuneuljari:last";
+let RESTORE = null;
+try { RESTORE = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); } catch { RESTORE = null; }
+
+function saveLast() {
+  const r = ROUTES[+$("route").value];
+  if (!r) return;
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      cityCode: $("city").value, routeNo: $("routeNo").value.trim(),
+      routeId: r.routeId, from: +$("from").value, to: +$("to").value
+    }));
+  } catch { /* 저장 실패는 무시한다 — 추천 기능 자체엔 영향 없다 */ }
+}
+
 async function loadCities() {
   setStatus("도시 목록 불러오는 중…");
   try {
@@ -62,9 +82,17 @@ async function loadCities() {
       o.value = c.code; o.textContent = c.name;
       $("city").appendChild(o);
     });
-    const cheonan = CITIES.find(c => c.name.includes("천안"));
-    if (cheonan) $("city").value = cheonan.code;
+    const saved = RESTORE && CITIES.some(c => String(c.code) === String(RESTORE.cityCode));
+    if (saved) $("city").value = RESTORE.cityCode;
+    else {
+      const cheonan = CITIES.find(c => c.name.includes("천안"));
+      if (cheonan) $("city").value = cheonan.code;
+    }
     setStatus("");
+    if (saved && RESTORE.routeNo) {
+      $("routeNo").value = RESTORE.routeNo;
+      await searchRoutes();
+    }
   } catch (e) {
     setStatus(`도시 목록을 불러오지 못했습니다: ${e.message}`, true);
   }
@@ -86,6 +114,10 @@ async function searchRoutes() {
       o.value = i; o.textContent = `${r.routeNo}번 · ${r.start} → ${r.end}`;
       $("route").appendChild(o);
     });
+    if (RESTORE?.routeId) {
+      const i = ROUTES.findIndex(r => r.routeId === RESTORE.routeId);
+      if (i >= 0) $("route").value = i;
+    }
     setStatus(`${ROUTES.length}개 노선을 찾았습니다.`);
     await loadStops();
   } catch (e) {
@@ -108,9 +140,12 @@ async function loadStops() {
     STOPS.forEach((s, i) => {
       const a = document.createElement("option"); a.value = i; a.textContent = s.name; $("from").appendChild(a);
     });
-    $("from").value = 0;
+    $("from").value = RESTORE && RESTORE.from < STOPS.length ? RESTORE.from : 0;
     updateToOptions();
+    if (RESTORE && [...$("to").options].some(o => +o.value === RESTORE.to)) $("to").value = RESTORE.to;
+    RESTORE = null;   // 복원은 첫 로드 때 한 번만. 이후 선택은 사용자 것이다.
     setStatus(`정류소 ${STOPS.length}개를 불러왔습니다.`);
+    saveLast();
   } catch (e) {
     setStatus(`정류소를 불러오지 못했습니다: ${e.message}`, true);
   }
@@ -130,7 +165,7 @@ $("from").addEventListener("change", updateToOptions);
 
 $("city").addEventListener("change", () => {
   $("route").innerHTML = ""; $("from").innerHTML = ""; $("to").innerHTML = "";
-  ROUTES = []; STOPS = []; $("result").classList.add("hidden");
+  ROUTES = []; STOPS = []; RESTORE = null; $("result").classList.add("hidden");
 });
 $("btnSearch").addEventListener("click", searchRoutes);
 $("route").addEventListener("change", loadStops);
@@ -146,6 +181,7 @@ function run() {
   if (STOPS.length < 2) { setStatus("노선과 정류소를 먼저 선택하세요.", true); return; }
   let i0 = +$("from").value, i1 = +$("to").value;
   if (i1 <= i0) { i1 = STOPS.length - 1; i0 = 0; $("from").value = 0; $("to").value = i1; }
+  saveLast();
   const stops = STOPS.slice(i0, i1 + 1);
   const [Y, MO, D] = $("date").value.split("-").map(Number);
   const [H, MI] = $("time").value.split(":").map(Number);
