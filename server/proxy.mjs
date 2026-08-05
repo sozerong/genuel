@@ -17,6 +17,27 @@ const BASE = "https://apis.data.go.kr/1613000/BusRouteInfoInqireService";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
+
+// 서울은 TAGO가 다루지 않는다 (국토교통부 대상이 아니라 서울시 자체 시스템 관할).
+// 매 요청마다 API를 부르는 대신, 서울 열린데이터광장 정적 덤프를 서버 시작 시 한 번 메모리에 올려둔다.
+// 갱신: server/data/build-seoul-data.py 참고.
+const SEOUL_CITY_CODE = "seoul";
+const seoulRoutes = new Map(); // routeId -> { routeId, routeNo, stops: [{ord,name,lat,lon}] }
+{
+  const raw = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "seoul-stops.json"), "utf-8"));
+  for (const r of raw) {
+    let route = seoulRoutes.get(r.routeId);
+    if (!route) { route = { routeId: r.routeId, routeNo: r.routeNo, stops: [] }; seoulRoutes.set(r.routeId, route); }
+    route.stops.push({ ord: r.ord, name: r.name, lat: r.lat, lon: r.lon });
+  }
+  for (const route of seoulRoutes.values()) route.stops.sort((a, b) => a.ord - b.ord);
+}
+const seoulRouteList = [...seoulRoutes.values()].map(r => ({
+  routeId: r.routeId,
+  routeNo: r.routeNo,
+  start: r.stops[0]?.name ?? "",
+  end: r.stops[r.stops.length - 1]?.name ?? ""
+}));
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -106,10 +127,17 @@ const server = http.createServer(async (req, res) => {
   try {
     if (url.pathname === "/api/cities") {
       const items = await call("getCtyCodeList", {});
-      res.end(JSON.stringify(items.map(c => ({ code: c.citycode, name: c.cityname }))));
+      const cities = items.map(c => ({ code: String(c.citycode), name: c.cityname }));
+      cities.unshift({ code: SEOUL_CITY_CODE, name: "서울특별시" });
+      res.end(JSON.stringify(cities));
 
     } else if (url.pathname === "/api/routes") {
       if (!q.cityCode) { res.statusCode = 400; res.end(JSON.stringify({ error: "cityCode가 필요합니다." })); return; }
+      if (q.cityCode === SEOUL_CITY_CODE) {
+        const needle = (q.routeNo || "").toLowerCase();
+        res.end(JSON.stringify(seoulRouteList.filter(r => r.routeNo.toLowerCase().includes(needle))));
+        return;
+      }
       const items = await call("getRouteNoList", {
         cityCode: q.cityCode,
         ...(q.routeNo ? { routeNo: q.routeNo } : {})
@@ -123,6 +151,10 @@ const server = http.createServer(async (req, res) => {
 
     } else if (url.pathname === "/api/stops") {
       if (!q.cityCode || !q.routeId) { res.statusCode = 400; res.end(JSON.stringify({ error: "cityCode와 routeId가 필요합니다." })); return; }
+      if (q.cityCode === SEOUL_CITY_CODE) {
+        res.end(JSON.stringify(seoulRoutes.get(q.routeId)?.stops ?? []));
+        return;
+      }
       const items = await call("getRouteAcctoThrghSttnList", {
         cityCode: q.cityCode,
         routeId: q.routeId
