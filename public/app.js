@@ -77,17 +77,18 @@ async function loadCities() {
   try {
     CITIES = await api("/api/cities");
     $("city").innerHTML = "";
+    // 전국 노선을 다루므로 특정 도시를 기본값으로 밀어넣지 않는다.
+    // 이전에 조회한 도시가 있으면 그것만 복원한다.
+    const ph = document.createElement("option");
+    ph.value = ""; ph.textContent = "도시를 선택하세요";
+    $("city").appendChild(ph);
     CITIES.forEach(c => {
       const o = document.createElement("option");
       o.value = c.code; o.textContent = c.name;
       $("city").appendChild(o);
     });
     const saved = RESTORE && CITIES.some(c => String(c.code) === String(RESTORE.cityCode));
-    if (saved) $("city").value = RESTORE.cityCode;
-    else {
-      const cheonan = CITIES.find(c => c.name.includes("천안"));
-      if (cheonan) $("city").value = cheonan.code;
-    }
+    $("city").value = saved ? RESTORE.cityCode : "";
     setStatus("");
     if (saved && RESTORE.routeNo) {
       $("routeNo").value = RESTORE.routeNo;
