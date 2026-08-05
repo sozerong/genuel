@@ -21,10 +21,21 @@ function nowKST() {
   const o = {}; p.forEach(x => o[x.type] = x.value);
   return { y: +o.year, mo: +o.month, d: +o.day, h: +(o.hour === "24" ? 0 : o.hour), mi: +o.minute };
 }
-const N = nowKST();
-$("clock").textContent = `${pad(N.h)}:${pad(N.mi)} KST`;
-$("date").value = `${N.y}-${pad(N.mo)}-${pad(N.d)}`;
-$("time").value = `${pad(N.h)}:${pad(N.mi)}`;
+// 우측 상단 시계와 승차 시각 기본값은 사용자가 직접 손대기 전까지 "지금"을 계속 따라간다.
+let followNow = true;
+$("date").addEventListener("input", () => followNow = false);
+$("time").addEventListener("input", () => followNow = false);
+
+function tickClock() {
+  const n = nowKST();
+  $("clock").textContent = `${pad(n.h)}:${pad(n.mi)} KST`;
+  if (followNow) {
+    $("date").value = `${n.y}-${pad(n.mo)}-${pad(n.d)}`;
+    $("time").value = `${pad(n.h)}:${pad(n.mi)}`;
+  }
+}
+tickClock();
+setInterval(tickClock, 30000);
 
 async function api(pathAndQuery) {
   const res = await fetch(pathAndQuery);
