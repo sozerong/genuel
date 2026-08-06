@@ -1,4 +1,4 @@
-# 그늘자리 (Geuneuljari)
+# 버스명당
 
 버스 노선과 승차 시각을 넣으면, 구간별로 **왼쪽/오른쪽 중 어느 창가에 앉아야 햇빛을 덜 받는지** 알려주는 웹앱.
 
@@ -116,6 +116,20 @@ routeid     노선ID
 방향은 정류소 필드가 아니라 **routeId 자체**로 갈린다 — 반대 방향이 있으면 `getRouteNoList` 결과에
 별도 `routeid`로 따로 나온다. 상행/하행 선택 UI를 만들지 말 것, 노선 검색 결과에서 방향별로 다른 routeId를 고르게 할 것.
 
+### TAGO 버스위치정보 (실시간)
+
+```
+서비스   BusLcInfoInqireService
+베이스   https://apis.data.go.kr/1613000/BusLcInfoInqireService
+오퍼레이션  getRouteAcctoBusLcList (cityCode, routeId → 그 노선을 현재 운행 중인 차량 목록)
+문서     https://www.data.go.kr/data/15098533/openapi.do
+```
+
+같은 기관(1613000)의 형제 서비스라 **TAGO_KEY 그대로 재사용**, 인증/에러 스키마도 동일. `nodeord`가 각 차량이
+지금 지나는 정류소 순번이므로, 내가 탈 정류소의 `ord`와 비교해 "N정류장 전"을 계산한다. 서울은 노선정보와
+마찬가지로 이 API 관할 밖 — `/api/buslocation`은 서울이면 빈 배열을 바로 반환한다.
+위치는 계속 바뀌는 값이라 노선정보(24시간)와 달리 15초 TTL로 캐시한다.
+
 ### 이 API의 함정 (실제로 겪은 것들)
 
 1. **CORS 차단.** `Access-Control-Allow-Origin` 헤더가 없다. 확인 완료.
@@ -157,9 +171,10 @@ TAGO API
 프록시 엔드포인트:
 
 ```
-GET /api/cities                              도시코드 목록
-GET /api/routes?cityCode=&routeNo=           노선 검색
-GET /api/stops?cityCode=&routeId=&updown=    경유 정류소 + 좌표
+GET /api/cities                                 도시코드 목록
+GET /api/routes?cityCode=&routeNo=              노선 검색
+GET /api/stops?cityCode=&routeId=               경유 정류소 + 좌표
+GET /api/buslocation?cityCode=&routeId=         실시간 운행 차량 (nodeOrd, nodeName, vehicleNo)
 ```
 
 정류소 응답은 프론트가 그대로 쓸 수 있는 모양으로 정규화해서 내보낸다:
@@ -178,7 +193,8 @@ GET /api/stops?cityCode=&routeId=&updown=    경유 정류소 + 좌표
 
 - 계산 로직 리팩터링. 검증된 코드다.
 - 임계값(0.13 / 0.15)을 낮춰 항상 추천이 나오게 만들기.
-- 지도 화면 추가. 노선 검색 앱은 이미 많다. 이 앱은 좌석만 답한다.
+- 지도 화면 추가. 노선 검색 앱은 이미 많다. 좌표/버스 위치는 텍스트(예: "N정류장 전")로만 보여주고
+  지도 UI(마커, 라이브러리)는 넣지 않는다 — 사용자 확인 후 명시적으로 이 선을 유지하기로 함.
 - 건물 그림자 반영. v1 범위 밖. 고도 20° 미만 구간에 "신뢰도 낮음" 표시로 대체한다.
 - 좌표를 손으로 채워넣기. API가 안 주면 그 노선은 지원하지 않는다고 표시한다.
 

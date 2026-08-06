@@ -21,21 +21,20 @@ function nowKST() {
   const o = {}; p.forEach(x => o[x.type] = x.value);
   return { y: +o.year, mo: +o.month, d: +o.day, h: +(o.hour === "24" ? 0 : o.hour), mi: +o.minute };
 }
-// 우측 상단 시계와 승차 시각 기본값은 사용자가 직접 손대기 전까지 "지금"을 계속 따라간다.
+// 승차 시각 기본값은 사용자가 직접 손대기 전까지 "지금"을 계속 따라간다.
 let followNow = true;
 $("date").addEventListener("input", () => followNow = false);
 $("time").addEventListener("input", () => followNow = false);
 
-function tickClock() {
+function followClock() {
   const n = nowKST();
-  $("clock").textContent = `${pad(n.h)}:${pad(n.mi)} KST`;
   if (followNow) {
     $("date").value = `${n.y}-${pad(n.mo)}-${pad(n.d)}`;
     $("time").value = `${pad(n.h)}:${pad(n.mi)}`;
   }
 }
-tickClock();
-setInterval(tickClock, 30000);
+followClock();
+setInterval(followClock, 30000);
 
 // 앱인토스 미니앱은 이 프론트를 토스 자체 도메인에서 띄우므로 상대경로 fetch가 안 통한다.
 // 백엔드 프록시(Cloudtype 배포)를 절대주소로 호출한다 — CORS는 이미 열려 있다.
@@ -147,6 +146,7 @@ async function loadStops() {
     RESTORE = null;   // 복원은 첫 로드 때 한 번만. 이후 선택은 사용자 것이다.
     setStatus(`정류소 ${STOPS.length}개를 불러왔습니다.`);
     saveLast();
+    refreshBuses();
   } catch (e) {
     setStatus(`정류소를 불러오지 못했습니다: ${e.message}`, true);
   }
@@ -164,9 +164,63 @@ function updateToOptions() {
 }
 $("from").addEventListener("change", updateToOptions);
 
+// 실시간 버스 위치 — 타임라인 가운데 선 위의 점으로 표시한다. 부가 정보라
+// 못 가져와도 조용히 안 보일 뿐, 핵심 기능(좌석 추천)엔 관여하지 않는다.
+let BUSES = [];
+async function refreshBuses() {
+  const r = ROUTES[+$("route").value];
+  if (!r || $("city").value === "seoul") { BUSES = []; positionBusMarker(); return; }
+  try {
+    BUSES = await api(`/api/buslocation?cityCode=${encodeURIComponent($("city").value)}&routeId=${encodeURIComponent(r.routeId)}`);
+  } catch { BUSES = []; }
+  positionBusMarker();
+}
+setInterval(refreshBuses, 20000);
+
+// 현재 보고 있는 구간(CUR_STOPS)에 가장 가까운 차량 한 대를 골라 타임라인의
+// 정류소 점(dot) 위치를 기준으로 세로 좌표를 계산한다. 구간 밖이면 위/아래 끝에 붙인다.
+function positionBusMarker() {
+  const tl = $("timeline");
+  let marker = document.getElementById("busmarker");
+  const dots = [...tl.querySelectorAll(".strow .dot")];
+  if (!BUSES.length || CUR_STOPS.length < 2 || dots.length !== CUR_STOPS.length || $("result").classList.contains("hidden")) {
+    if (marker) marker.remove();
+    return;
+  }
+  const lo = CUR_STOPS[0].ord, hi = CUR_STOPS[CUR_STOPS.length - 1].ord;
+  const distTo = b => b.nodeOrd < lo ? lo - b.nodeOrd : b.nodeOrd > hi ? b.nodeOrd - hi : 0;
+  const bus = BUSES.reduce((best, b) => !best || distTo(b) < distTo(best) ? b : best, null);
+  if (!bus) { if (marker) marker.remove(); return; }
+
+  // 정류소 사이일 땐 두 dot 사이를 순번 비율로 보간한다 — 세그먼트 라벨과 겹칠 수
+  // 있지만 그게 실제로 버스가 지나는 중이라는 뜻이라 자연스럽다.
+  const ord = Math.max(lo, Math.min(hi, bus.nodeOrd));
+  let idx1 = CUR_STOPS.findIndex(s => s.ord >= ord);
+  if (idx1 < 0) idx1 = CUR_STOPS.length - 1;
+  let idx0 = idx1, frac = 0;
+  if (CUR_STOPS[idx1].ord > ord && idx1 > 0) {
+    idx0 = idx1 - 1;
+    const span = CUR_STOPS[idx1].ord - CUR_STOPS[idx0].ord || 1;
+    frac = (ord - CUR_STOPS[idx0].ord) / span;
+  }
+  const tlRect = tl.getBoundingClientRect();
+  const centerOf = d => { const r = d.getBoundingClientRect(); return r.top + r.height / 2 - tlRect.top; };
+  const y0 = centerOf(dots[idx0]), y1 = centerOf(dots[idx1]);
+  const y = y0 + (y1 - y0) * frac;
+
+  if (!marker) {
+    marker = document.createElement("div");
+    marker.id = "busmarker"; marker.className = "busmarker";
+    tl.appendChild(marker);
+  }
+  marker.title = bus.vehicleNo ? `버스 위치 · ${bus.vehicleNo}` : "버스 위치";
+  marker.style.top = `${y}px`;
+}
+
 $("city").addEventListener("change", () => {
   $("route").innerHTML = ""; $("from").innerHTML = ""; $("to").innerHTML = "";
   ROUTES = []; STOPS = []; RESTORE = null; $("result").classList.add("hidden");
+  BUSES = []; document.getElementById("busmarker")?.remove();
 });
 $("btnSearch").addEventListener("click", searchRoutes);
 $("route").addEventListener("change", loadStops);
@@ -176,14 +230,14 @@ $("btn16").onclick = () => { $("time").value = "16:00"; run(); };
 $("btn8").onclick = () => { $("time").value = "08:00"; run(); };
 $("btnGo").onclick = run;
 
-let SEGS = [], SEL = 0;
+let SEGS = [], SEL = 0, CUR_STOPS = [];
 
 function run() {
   if (STOPS.length < 2) { setStatus("노선과 정류소를 먼저 선택하세요.", true); return; }
   let i0 = +$("from").value, i1 = +$("to").value;
   if (i1 <= i0) { i1 = STOPS.length - 1; i0 = 0; $("from").value = 0; $("to").value = i1; }
   saveLast();
-  const stops = STOPS.slice(i0, i1 + 1);
+  const stops = CUR_STOPS = STOPS.slice(i0, i1 + 1);
   const [Y, MO, D] = $("date").value.split("-").map(Number);
   const [H, MI] = $("time").value.split(":").map(Number);
 
@@ -250,6 +304,7 @@ function run() {
     + `구름은 반영하지 않았습니다. 정류소 좌표는 ${$("city").value === "seoul" ? "서울 열린데이터광장" : "TAGO 버스노선정보 API"} 실측값입니다.`;
 
   $("result").classList.remove("hidden");
+  positionBusMarker();
 }
 
 loadCities();

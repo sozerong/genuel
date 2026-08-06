@@ -1,4 +1,4 @@
-// 그늘자리 - TAGO 버스노선정보 프록시 + 정적 파일 서버
+// 버스명당 - TAGO 버스노선정보 프록시 + 정적 파일 서버
 //
 // 실행:
 //   export TAGO_KEY='디코딩키(원문, + 와 == 그대로)'
@@ -14,6 +14,7 @@ const KEY = process.env.TAGO_KEY;
 if (!KEY) { console.error("TAGO_KEY 환경변수가 없습니다."); process.exit(1); }
 
 const BASE = "https://apis.data.go.kr/1613000/BusRouteInfoInqireService";
+const LC_BASE = "https://apis.data.go.kr/1613000/BusLcInfoInqireService";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
@@ -69,15 +70,16 @@ const ERR_MSG = {
 const errMsg = (code, fallback) => ERR_MSG[String(code)] || fallback || "알 수 없는 오류입니다.";
 
 // 노선 경로는 거의 안 바뀐다 — 24시간 인메모리 캐시로 호출량을 줄인다.
+// 버스 실시간 위치는 반대로 계속 바뀌므로 짧은 TTL로 호출( call()의 ttl 인자로 전달)한다.
 const cache = new Map();
 const TTL = 24 * 60 * 60 * 1000;
 
-async function call(op, params) {
-  const cacheKey = op + JSON.stringify(params);
+async function call(op, params, { base = BASE, ttl = TTL } = {}) {
+  const cacheKey = base + op + JSON.stringify(params);
   const hit = cache.get(cacheKey);
   if (hit && hit.exp > Date.now()) return hit.data;
 
-  const u = new URL(`${BASE}/${op}`);
+  const u = new URL(`${base}/${op}`);
   u.searchParams.set("serviceKey", KEY);   // URL 객체가 인코딩을 처리합니다
   u.searchParams.set("_type", "json");
   u.searchParams.set("numOfRows", "300");
@@ -101,7 +103,7 @@ async function call(op, params) {
   const rawItems = json?.response?.body?.items?.item;
   const items = rawItems ? (Array.isArray(rawItems) ? rawItems : [rawItems]) : []; // 결과 1건이면 객체로 옵니다
 
-  cache.set(cacheKey, { data: items, exp: Date.now() + TTL });
+  cache.set(cacheKey, { data: items, exp: Date.now() + ttl });
   return items;
 }
 
@@ -172,6 +174,20 @@ const server = http.createServer(async (req, res) => {
       // nodeord 정렬을 신뢰하지 않고 직접 정렬합니다
       stops.sort((a, b) => a.ord - b.ord);
       res.end(JSON.stringify(stops));
+
+    } else if (url.pathname === "/api/buslocation") {
+      if (!q.cityCode || !q.routeId) { res.statusCode = 400; res.end(JSON.stringify({ error: "cityCode와 routeId가 필요합니다." })); return; }
+      // 서울은 TAGO 관할이 아니라 이 오퍼레이션 자체가 없다 (버스노선정보와 동일한 사정).
+      if (q.cityCode === SEOUL_CITY_CODE) { res.end(JSON.stringify([])); return; }
+      const items = await call(
+        "getRouteAcctoBusLcList",
+        { cityCode: q.cityCode, routeId: q.routeId },
+        { base: LC_BASE, ttl: 15 * 1000 } // 위치는 계속 바뀌므로 캐시를 짧게 둔다
+      );
+      const buses = items
+        .map(b => ({ vehicleNo: b.vehicleno, nodeOrd: Number(b.nodeord), nodeName: b.nodenm }))
+        .filter(b => Number.isFinite(b.nodeOrd));
+      res.end(JSON.stringify(buses));
 
     } else {
       res.statusCode = 404;

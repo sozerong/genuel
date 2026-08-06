@@ -1,6 +1,6 @@
 {
-  "name": "그늘자리 — 버스 좌석 추천",
-  "short_name": "그늘자리",
+  "name": "버스명당 — 버스 좌석 추천",
+  "short_name": "버스명당",
   "description": "버스 노선과 승차 시각을 넣으면 어느 창가가 햇빛을 덜 받는지 알려준다.",
   "start_url": "/",
   "display": "standalone",
