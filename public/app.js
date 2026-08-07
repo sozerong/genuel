@@ -1,4 +1,4 @@
-import { buildSegments, THRESH } from "./geo.js";
+import { buildSegments, projectOntoStops, THRESH } from "./geo.js";
 import { drawSeat } from "./seatmap.js";
 
 const $ = id => document.getElementById(id);
@@ -169,6 +169,7 @@ $("from").addEventListener("change", updateToOptions);
 let BUSES = [];
 async function refreshBuses() {
   const r = ROUTES[+$("route").value];
+  if (document.hidden) return;   // 백그라운드에서까지 일일 호출 한도를 태우지 않는다
   if (!r || $("city").value === "seoul") { BUSES = []; positionBusMarker(); return; }
   try {
     BUSES = await api(`/api/buslocation?cityCode=${encodeURIComponent($("city").value)}&routeId=${encodeURIComponent(r.routeId)}`);
@@ -177,50 +178,60 @@ async function refreshBuses() {
 }
 setInterval(refreshBuses, 20000);
 
-// 현재 보고 있는 구간(CUR_STOPS)에 가장 가까운 차량 한 대를 골라 타임라인의
-// 정류소 점(dot) 위치를 기준으로 세로 좌표를 계산한다. 구간 밖이면 위/아래 끝에 붙인다.
+const BUS_ICON_SVG = '<svg viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6Z"/><circle cx="8" cy="17.3" r="1.6"/><circle cx="16" cy="17.3" r="1.6"/></svg>';
+
+// 현재 이 노선에서 운행 중인 차량 전부를 타임라인 가운데 선 위에 표시한다.
+// 차량번호로 마커를 재사용해서, 폴링마다 새로 안 만들고 다음 위치로 미끄러지게 한다.
 function positionBusMarker() {
   const tl = $("timeline");
-  let marker = document.getElementById("busmarker");
   const dots = [...tl.querySelectorAll(".strow .dot")];
+  const existing = new Map([...tl.querySelectorAll(".busmarker")].map(el => [el.dataset.vehicle, el]));
+
   if (!BUSES.length || CUR_STOPS.length < 2 || dots.length !== CUR_STOPS.length || $("result").classList.contains("hidden")) {
-    if (marker) marker.remove();
+    existing.forEach(el => el.remove());
     return;
   }
+
   const lo = CUR_STOPS[0].ord, hi = CUR_STOPS[CUR_STOPS.length - 1].ord;
-  const distTo = b => b.nodeOrd < lo ? lo - b.nodeOrd : b.nodeOrd > hi ? b.nodeOrd - hi : 0;
-  const bus = BUSES.reduce((best, b) => !best || distTo(b) < distTo(best) ? b : best, null);
-  if (!bus) { if (marker) marker.remove(); return; }
-
-  // 정류소 사이일 땐 두 dot 사이를 순번 비율로 보간한다 — 세그먼트 라벨과 겹칠 수
-  // 있지만 그게 실제로 버스가 지나는 중이라는 뜻이라 자연스럽다.
-  const ord = Math.max(lo, Math.min(hi, bus.nodeOrd));
-  let idx1 = CUR_STOPS.findIndex(s => s.ord >= ord);
-  if (idx1 < 0) idx1 = CUR_STOPS.length - 1;
-  let idx0 = idx1, frac = 0;
-  if (CUR_STOPS[idx1].ord > ord && idx1 > 0) {
-    idx0 = idx1 - 1;
-    const span = CUR_STOPS[idx1].ord - CUR_STOPS[idx0].ord || 1;
-    frac = (ord - CUR_STOPS[idx0].ord) / span;
-  }
   const tlRect = tl.getBoundingClientRect();
-  const centerOf = d => { const r = d.getBoundingClientRect(); return r.top + r.height / 2 - tlRect.top; };
-  const y0 = centerOf(dots[idx0]), y1 = centerOf(dots[idx1]);
-  const y = y0 + (y1 - y0) * frac;
+  // 마커는 타임라인 콘텐츠 기준으로 절대 배치되는데 getBoundingClientRect는 화면 기준이다.
+  // 타임라인이 내부 스크롤되므로 scrollTop을 더해 콘텐츠 좌표로 되돌린다.
+  const centerOf = d => { const r = d.getBoundingClientRect(); return r.top + r.height / 2 - tlRect.top + tl.scrollTop; };
 
-  if (!marker) {
-    marker = document.createElement("div");
-    marker.id = "busmarker"; marker.className = "busmarker";
-    tl.appendChild(marker);
-  }
-  marker.title = bus.vehicleNo ? `버스 위치 · ${bus.vehicleNo}` : "버스 위치";
-  marker.style.top = `${y}px`;
+  const seen = new Set();
+  BUSES.forEach((bus, i) => {
+    // 표시 중인 구간 밖의 버스는 그리지 않는다. 끝에 붙여두면 "정류장에 서 있다"는
+    // 거짓 정보가 된다 — 안 보이는 편이 정직하다.
+    if (bus.nodeOrd < lo || bus.nodeOrd > hi) return;
+    const fidx = projectOntoStops(bus, CUR_STOPS);
+    if (fidx === null) return;
+
+    const key = bus.vehicleNo || `#${i}`;
+    seen.add(key);
+
+    // 소수 인덱스를 두 정류소 dot 사이의 화면 좌표로 옮긴다.
+    const i0 = Math.max(0, Math.min(dots.length - 1, Math.floor(fidx)));
+    const i1 = Math.min(dots.length - 1, i0 + 1);
+    const y = centerOf(dots[i0]) + (centerOf(dots[i1]) - centerOf(dots[i0])) * (fidx - i0);
+
+    let marker = existing.get(key);
+    if (!marker) {
+      marker = document.createElement("div");
+      marker.className = "busmarker"; marker.dataset.vehicle = key;
+      marker.innerHTML = BUS_ICON_SVG;
+      tl.appendChild(marker);
+    }
+    marker.title = bus.vehicleNo ? `버스 위치 · ${bus.vehicleNo}` : "버스 위치";
+    marker.style.top = `${y}px`;
+  });
+
+  existing.forEach((el, key) => { if (!seen.has(key)) el.remove(); });
 }
 
 $("city").addEventListener("change", () => {
   $("route").innerHTML = ""; $("from").innerHTML = ""; $("to").innerHTML = "";
   ROUTES = []; STOPS = []; RESTORE = null; $("result").classList.add("hidden");
-  BUSES = []; document.getElementById("busmarker")?.remove();
+  BUSES = []; document.querySelectorAll(".busmarker").forEach(el => el.remove());
 });
 $("btnSearch").addEventListener("click", searchRoutes);
 $("route").addEventListener("change", loadStops);

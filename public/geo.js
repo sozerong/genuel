@@ -41,6 +41,30 @@ export function buildSegments(stops, y, mo, d, h, mi) {
   return segs;
 }
 
+// 버스 GPS를 정류소 경로에 투영해 "몇 번째 정류소에서 다음 정류소로 몇 %" 지점인지 낸다.
+// TAGO의 nodeord는 정수라 그것만 쓰면 버스가 정류소에 딱 붙어 한 칸씩 튄다 —
+// 정류소 사이의 실제 위치는 좌표로만 알 수 있다.
+// 반환: 소수 인덱스(3.4 = stops[3]에서 stops[4]로 40% 지점). 정류소를 못 찾으면 null.
+export function projectOntoStops(bus, stops) {
+  const at = stops.findIndex(s => s.ord === bus.nodeOrd);
+  if (at < 0) return null;
+  if (!Number.isFinite(bus.lat) || !Number.isFinite(bus.lon)) return at; // 좌표가 없으면 정류소에 스냅
+  // 순환 노선에서 엉뚱한 구간에 붙는 걸 막으려고 보고된 정류소 앞뒤 한 구간만 후보로 둔다.
+  const kx = Math.cos(stops[at].lat * D2R); // 위도에 따른 경도 축소 — 이걸 빼면 투영이 동서로 늘어난다
+  let best = null;
+  for (let i = Math.max(0, at - 1); i <= Math.min(stops.length - 2, at); i++) {
+    const a = stops[i], b = stops[i + 1];
+    const vx = (b.lon - a.lon) * kx, vy = b.lat - a.lat;
+    const px = (bus.lon - a.lon) * kx, py = bus.lat - a.lat;
+    const len2 = vx * vx + vy * vy;
+    const t = len2 ? Math.max(0, Math.min(1, (px * vx + py * vy) / len2)) : 0;
+    const dx = px - vx * t, dy = py - vy * t;
+    const d2 = dx * dx + dy * dy;
+    if (!best || d2 < best.d2) best = { d2, idx: i + t };
+  }
+  return best ? best.idx : at;
+}
+
 export const THRESH = 0.13; // 이보다 약하면 "차이 없음"
 
 export function label(s) {

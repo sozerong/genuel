@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { sunPos, kstToUtc } from "../public/solar.js";
-import { bearing, distKm, buildSegments } from "../public/geo.js";
+import { bearing, distKm, buildSegments, projectOntoStops } from "../public/geo.js";
 
 // --- reference/prototype.html 원본 공식 (검증 기준) ---
 const D2R = Math.PI / 180, R2D = 180 / Math.PI;
@@ -77,4 +77,33 @@ test("buildSegments: 정남북 구간은 태양 남중 시각엔 측면광이 �
   const eveningInten = Math.abs(evening.sinD) * Math.cos(evening.alt * D2R);
   assert.ok(eveningInten >= 0.13, `오후 5시 측면 유입 강도가 뚜렷해야 함, got ${eveningInten}`);
   assert.ok(eveningInten > noonInten, "오후 5시가 남중 시각보다 측면 유입이 강해야 함");
+});
+
+// --- 버스 GPS 투영 ---
+// nodeord만 쓰던 옛 로직은 버스를 늘 정류소에 붙여놨다(보간이 항상 0). 좌표로 사이 위치를 내는지 확인한다.
+test("projectOntoStops: 정류소 사이 버스의 소수 위치를 GPS로 낸다", () => {
+  // 남북으로 곧게 뻗은 3개 정류소 (경도 동일, 위도 0.01씩)
+  const stops = [
+    { ord: 5, name: "A", lat: 36.70, lon: 127.10 },
+    { ord: 6, name: "B", lat: 36.71, lon: 127.10 },
+    { ord: 7, name: "C", lat: 36.72, lon: 127.10 }
+  ];
+
+  // B를 막 지나 C로 30% 지점에 있는 버스
+  const mid = projectOntoStops({ nodeOrd: 6, lat: 36.713, lon: 127.10 }, stops);
+  assert.ok(Math.abs(mid - 1.3) < 0.01, `1.3 근처여야 함, got ${mid}`);
+
+  // 정류소 B에 정확히 서 있는 버스
+  const atStop = projectOntoStops({ nodeOrd: 6, lat: 36.71, lon: 127.10 }, stops);
+  assert.ok(Math.abs(atStop - 1) < 0.01, `1 근처여야 함, got ${atStop}`);
+
+  // B 직전(A→B 80% 지점)이라 보고된 정류소보다 뒤에 있는 버스
+  const before = projectOntoStops({ nodeOrd: 6, lat: 36.708, lon: 127.10 }, stops);
+  assert.ok(Math.abs(before - 0.8) < 0.01, `0.8 근처여야 함, got ${before}`);
+
+  // 좌표가 없으면 정류소에 스냅한다 (API가 GPS를 안 줄 때의 후퇴 경로)
+  assert.equal(projectOntoStops({ nodeOrd: 7 }, stops), 2);
+
+  // 노선에 없는 순번이면 그리지 않도록 null
+  assert.equal(projectOntoStops({ nodeOrd: 99, lat: 36.71, lon: 127.10 }, stops), null);
 });

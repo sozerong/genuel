@@ -81,16 +81,18 @@ select:focus,input:focus{outline:none;border-color:var(--shade);box-shadow:0 0 0
 .tlhead .c{width:118px;text-align:center}
 .tlhead .r{flex:1;padding-left:6px}
 #timeline{position:relative}
-/* 실시간 버스 위치 — 가운데 선 위에 얹히는 작은 점. 정류소 dot보다 살짝만 커서
-   이름 텍스트를 가리지 않는다. 폴링마다 top이 바뀌며 미끄러지듯 이동한다. */
-.busmarker{position:absolute;left:50%;top:0;width:14px;height:14px;margin:-7px 0 0 -7px;
-  background:var(--sun);border:2px solid var(--card);border-radius:50%;
-  box-shadow:0 0 0 3px rgba(255,178,35,.28),0 2px 4px rgba(16,26,36,.3);
+/* 실시간 버스 위치 — 가운데 선 위에 얹히는 버스 아이콘 배지. 노선에 여러 대가
+   있으면 차량마다 하나씩. 폴링마다 top이 바뀌며 미끄러지듯 이동한다. */
+.busmarker{position:absolute;left:50%;top:0;width:19px;height:19px;margin:-9.5px 0 0 -9.5px;
+  background:var(--shade);border:2px solid var(--card);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 3px rgba(47,108,134,.22),0 2px 4px rgba(16,26,36,.3);
   transition:top .8s cubic-bezier(.4,0,.2,1);z-index:2;pointer-events:none;
   animation:buspulse 1.8s ease-in-out infinite}
+.busmarker svg{width:12px;height:12px;fill:#fff}
 @keyframes buspulse{
-  0%,100%{box-shadow:0 0 0 3px rgba(255,178,35,.28),0 2px 4px rgba(16,26,36,.3)}
-  50%{box-shadow:0 0 0 6px rgba(255,178,35,.14),0 2px 4px rgba(16,26,36,.3)}
+  0%,100%{box-shadow:0 0 0 3px rgba(47,108,134,.22),0 2px 4px rgba(16,26,36,.3)}
+  50%{box-shadow:0 0 0 6px rgba(47,108,134,.1),0 2px 4px rgba(16,26,36,.3)}
 }
 @media (prefers-reduced-motion:reduce){.busmarker{animation:none}}
 .strow{display:flex;align-items:center}

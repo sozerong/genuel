@@ -113,6 +113,9 @@ function serveStatic(req, res, pathname) {
   fs.readFile(filePath, (err, data) => {
     if (err) { res.statusCode = 404; res.end("Not found"); return; }
     res.setHeader("Content-Type", MIME[path.extname(filePath)] || "application/octet-stream");
+    // 파일이 서로 물려 있어서(app.js가 geo.js의 export를 import) 일부만 캐시된 채로 섞이면
+    // 모듈 링크가 통째로 실패해 앱이 백지가 된다. 매번 최신을 받게 한다.
+    res.setHeader("Cache-Control", "no-cache");
     res.end(data);
   });
 }
@@ -184,8 +187,16 @@ const server = http.createServer(async (req, res) => {
         { cityCode: q.cityCode, routeId: q.routeId },
         { base: LC_BASE, ttl: 15 * 1000 } // 위치는 계속 바뀌므로 캐시를 짧게 둔다
       );
+      // nodeord는 정수라 그것만 쓰면 버스가 정류소에 딱 붙어 한 칸씩 튄다.
+      // 실제 위치는 gpslati/gpslong으로만 알 수 있으므로 좌표도 같이 내보낸다.
       const buses = items
-        .map(b => ({ vehicleNo: b.vehicleno, nodeOrd: Number(b.nodeord), nodeName: b.nodenm }))
+        .map(b => ({
+          vehicleNo: b.vehicleno,
+          nodeOrd: Number(b.nodeord),
+          nodeName: b.nodenm,
+          lat: Number(b.gpslati),
+          lon: Number(b.gpslong)
+        }))
         .filter(b => Number.isFinite(b.nodeOrd));
       res.end(JSON.stringify(buses));
 
