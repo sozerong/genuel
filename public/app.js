@@ -177,6 +177,8 @@ async function refreshBuses() {
   positionBusMarker();
 }
 setInterval(refreshBuses, 20000);
+// 앱을 다시 열었을 때 최대 20초간 옛 위치가 남아있지 않도록 즉시 한 번 당겨온다.
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshBuses(); });
 
 const BUS_ICON_SVG = '<svg viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6Z"/><circle cx="8" cy="17.3" r="1.6"/><circle cx="16" cy="17.3" r="1.6"/></svg>';
 
