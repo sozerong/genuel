@@ -38,7 +38,7 @@ setInterval(followClock, 30000);
 
 // 앱인토스 미니앱은 이 프론트를 토스 자체 도메인에서 띄우므로 상대경로 fetch가 안 통한다.
 // 백엔드 프록시(Cloudtype 배포)를 절대주소로 호출한다 — CORS는 이미 열려 있다.
-const API_BASE = "https://port-0-genuel-mp2oa3fkd20c6566.sel3.cloudtype.app";
+const API_BASE = "https://port-0-genuel-msidnon2a00aaf43.sel3.cloudtype.app";
 
 async function api(pathAndQuery) {
   const res = await fetch(API_BASE + pathAndQuery);
