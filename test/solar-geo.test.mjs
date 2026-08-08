@@ -107,3 +107,28 @@ test("projectOntoStops: 정류소 사이 버스의 소수 위치를 GPS로 낸�
   // 노선에 없는 순번이면 그리지 않도록 null
   assert.equal(projectOntoStops({ nodeOrd: 99, lat: 36.71, lon: 127.10 }, stops), null);
 });
+
+// --- 고속버스: elapsedMin이 있으면 21km/h 가정 대신 실제 경과시간을 쓴다 ---
+test("buildSegments: elapsedMin이 있으면 거리(21km/h) 대신 그 값으로 구간 시간을 낸다", () => {
+  // 정동으로 200km 떨어진 두 정류소. 21km/h면 570분 넘게 걸리지만,
+  // 고속도로 실제 소요시간(elapsedMin)은 90분이라고 알려준다.
+  const withElapsed = [
+    { name: "출발", lat: 37.5, lon: 127.0, elapsedMin: 0 },
+    { name: "도착", lat: 37.5, lon: 128.8, elapsedMin: 90 }
+  ];
+  const segs = buildSegments(withElapsed, 2026, 6, 21, 6, 0);
+  assert.equal(segs.length, 1);
+  assert.ok(Math.abs(segs[0].dur - 90) < 0.01, `elapsedMin(90분)을 그대로 써야 함, got ${segs[0].dur}`);
+});
+
+test("buildSegments: elapsedMin이 없으면(시내버스) 기존처럼 21km/h로 추정한다", () => {
+  // 정동으로 대략 1.85km 떨어진 두 정류소(경도 0.021도 근방, 위도 37.5)
+  const noElapsed = [
+    { name: "A", lat: 37.5, lon: 127.000 },
+    { name: "B", lat: 37.5, lon: 127.021 }
+  ];
+  const segs = buildSegments(noElapsed, 2026, 6, 21, 6, 0);
+  const km = distKm(noElapsed[0], noElapsed[1]);
+  const expected = km / 21 * 60 + 0.5; // SPEED=21, DWELL=0.5 (geo.js와 동일한 공식)
+  assert.ok(Math.abs(segs[0].dur - expected) < 0.01, `기존 21km/h 공식과 같아야 함, got ${segs[0].dur} vs ${expected}`);
+});

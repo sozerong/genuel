@@ -17,6 +17,14 @@
 <meta name="apple-mobile-web-app-title" content="버스명당">
 </head>
 <body>
+<div class="modal-overlay hidden" id="noticeModal">
+  <div class="modal-card">
+    <p class="modal-title">버스명당 사용법</p>
+    <p>도시·노선(또는 고속/시외 터미널)과 타는 곳·내리는 곳, 날짜·시각을 넣으면 햇빛을 덜 받는 좌석을 알려드려요.</p>
+    <p>이 앱은 공공데이터(국가대중교통정보센터)를 기반으로 만들어졌습니다. 공공데이터 특성상 일부 노선의 배차 정보가 비어 있을 수 있습니다.</p>
+    <button id="noticeOk" type="button">확인</button>
+  </div>
+</div>
 <div class="app">
 
   <div class="hd">
@@ -28,34 +36,73 @@
   </div>
 
   <div class="panel">
-    <div class="fld">
-      <label>도시</label>
-      <select id="city"></select>
+    <div class="modetabs" role="tablist">
+      <button type="button" class="modetab on" id="modeCity" role="tab" aria-selected="true">시내·광역</button>
+      <button type="button" class="modetab" id="modeExp" role="tab" aria-selected="false">고속</button>
+      <button type="button" class="modetab" id="modeSuburbs" role="tab" aria-selected="false">시외</button>
     </div>
-    <div class="fld">
-      <label>노선번호</label>
-      <div class="searchrow">
-        <input type="text" id="routeNo" placeholder="예: 400, 8873, 도봉07">
-        <button id="btnSearch" type="button">검색</button>
+
+    <div id="cityFields">
+      <div class="fld">
+        <label>도시</label>
+        <select id="city"></select>
+      </div>
+      <div class="fld">
+        <label>노선번호</label>
+        <div class="searchrow">
+          <input type="text" id="routeNo" placeholder="예: 400, 8873, 도봉07">
+          <button id="btnSearch" type="button">검색</button>
+        </div>
+      </div>
+      <div class="fld">
+        <label>노선</label>
+        <select id="route"></select>
+      </div>
+      <div class="two">
+        <div class="fld"><label>타는 곳</label><select id="from"></select></div>
+        <div class="fld"><label>내리는 곳</label><select id="to"></select></div>
+      </div>
+      <div class="two">
+        <div class="fld"><label>날짜</label><input type="date" id="date"></div>
+        <div class="fld"><label>승차 시각</label><input type="time" id="time" step="300"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:2px">
+        <button class="nowbtn" id="btnNow">지금</button>
+        <button class="nowbtn" id="btn16">오후 4시</button>
+        <button class="nowbtn" id="btn8">오전 8시</button>
       </div>
     </div>
-    <div class="fld">
-      <label>노선</label>
-      <select id="route"></select>
+
+    <div id="expressFields" class="hidden">
+      <div class="fld">
+        <label>출발 터미널</label>
+        <div class="searchrow">
+          <input type="text" id="expDepKeyword" placeholder="예: 센트럴시티, 동서울">
+          <button id="btnExpDepSearch" type="button">검색</button>
+        </div>
+      </div>
+      <div class="fld"><select id="expDepTerminal"></select></div>
+      <div class="fld">
+        <label>도착 터미널</label>
+        <div class="searchrow">
+          <input type="text" id="expArrKeyword" placeholder="예: 부산, 대전복합">
+          <button id="btnExpArrSearch" type="button">검색</button>
+        </div>
+      </div>
+      <div class="fld"><select id="expArrTerminal"></select></div>
+      <div class="fld">
+        <label>날짜</label>
+        <div class="searchrow">
+          <input type="date" id="expDate">
+          <button id="btnExpSchedule" type="button">배차 조회</button>
+        </div>
+      </div>
+      <div class="fld">
+        <label>배차</label>
+        <select id="expSchedule"></select>
+      </div>
     </div>
-    <div class="two">
-      <div class="fld"><label>타는 곳</label><select id="from"></select></div>
-      <div class="fld"><label>내리는 곳</label><select id="to"></select></div>
-    </div>
-    <div class="two">
-      <div class="fld"><label>날짜</label><input type="date" id="date"></div>
-      <div class="fld"><label>승차 시각</label><input type="time" id="time" step="300"></div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:2px">
-      <button class="nowbtn" id="btnNow">지금</button>
-      <button class="nowbtn" id="btn16">오후 4시</button>
-      <button class="nowbtn" id="btn8">오전 8시</button>
-    </div>
+
     <button class="go" id="btnGo">자리 찾기</button>
     <div class="status mono" id="status" role="status" aria-live="polite"></div>
   </div>

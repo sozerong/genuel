@@ -29,6 +29,10 @@ body{
 
 /* search */
 .panel{background:var(--card);border:1px solid rgba(201,211,219,.6);border-radius:20px;padding:16px;margin-bottom:16px;box-shadow:var(--shadow-md)}
+.modetabs{display:flex;gap:6px;background:var(--paper);border-radius:11px;padding:4px;margin-bottom:14px}
+.modetab{flex:1;padding:9px 0;border:0;border-radius:8px;background:none;color:var(--slate);
+  font-family:"IBM Plex Sans KR",sans-serif;font-weight:600;font-size:13.5px;cursor:pointer;transition:background .12s,color .12s}
+.modetab.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow-sm)}
 .fld{margin-bottom:10px}
 .fld:last-child{margin-bottom:0}
 .fld label{display:block;font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.13em;color:#7A8C9B;text-transform:uppercase;margin-bottom:4px}
@@ -116,8 +120,12 @@ select:focus,input:focus{outline:none;border-color:var(--shade);box-shadow:0 0 0
 .seg .sp span{position:relative;background:var(--card);padding:2px 3px}
 .seg.on .sp span{background:#EAF2F6}
 
-.badge-lowalt{display:inline-block;background:#FFF3DC;color:#6B4A0E;border:1px solid #F2D9A8;border-radius:6px;padding:1px 6px;font-size:10px;margin-left:6px}
 .foot{font-size:11.5px;color:#8494A2;line-height:1.7;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
 .foot b{color:var(--shade);font-weight:600}
+.modal-overlay{position:fixed;inset:0;background:rgba(16,26,36,.55);display:flex;align-items:center;justify-content:center;padding:24px;z-index:10}
+.modal-card{background:var(--card);border-radius:16px;padding:20px;max-width:340px;box-shadow:var(--shadow-md)}
+.modal-card .modal-title{font-family:"Black Han Sans",sans-serif;font-size:17px;color:var(--ink);margin-bottom:8px}
+.modal-card p{font-size:13.5px;line-height:1.6;color:var(--slate);margin-bottom:10px}
+.modal-card button{width:100%;padding:12px;border:0;border-radius:11px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;cursor:pointer;margin-top:4px}
 .hidden{display:none}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}

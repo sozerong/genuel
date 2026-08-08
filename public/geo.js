@@ -17,12 +17,18 @@ export function distKm(a, b) {
 const SPEED = 21, DWELL = 0.5; // km/h, 정차 분
 
 // stops: [{ name, lat, lon }, ...] — TAGO 정류소 좌표를 ord 순으로 넘긴다.
+// stops에 elapsedMin(출발 기준 경과분)이 있으면 그걸로 구간 소요시간을 낸다 — 고속버스처럼
+// 정류소 사이 실제 이동시간을 이미 아는 경우다. 없으면(시내버스) 기존처럼 21km/h로 추정한다.
+// 고속도로는 21km/h 가정이 전혀 안 맞아서, elapsedMin이 있는데도 무시하면 태양 위치 계산에
+// 쓰는 경과시간이 실제와 몇 배씩 벌어진다.
 export function buildSegments(stops, y, mo, d, h, mi) {
   const segs = []; let t = 0;
   for (let i = 0; i < stops.length - 1; i++) {
     const a = stops[i], b = stops[i + 1];
     const km = distKm(a, b);
-    const dur = km / SPEED * 60 + DWELL;
+    const dur = (Number.isFinite(a.elapsedMin) && Number.isFinite(b.elapsedMin))
+      ? b.elapsedMin - a.elapsedMin
+      : km / SPEED * 60 + DWELL;
     const brg = bearing(a, b);
     const mid = { lat: (a.lat + b.lat) / 2, lon: (a.lon + b.lon) / 2 };
     const { alt, az } = sunPos(kstToUtc(y, mo, d, h, mi) + (t + dur / 2) * 60000, mid.lat, mid.lon);
