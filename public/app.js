@@ -321,17 +321,16 @@ $("btnExpDepSearch").addEventListener("click", () => searchExpTerminal("dep"));
 $("btnExpArrSearch").addEventListener("click", () => searchExpTerminal("arr"));
 
 async function searchExpSchedule() {
+  const dep = EXP_DEP[+$("expDepTerminal").value], arr = EXP_ARR[+$("expArrTerminal").value];
   const date = $("expDate").value.replaceAll("-", "");
-  // 검색된 후보 이름이 여러 개일 수 있다(예: "전주" -> 전주시외터미널/대한리무진(전주)/전주대) —
-  // 실제 등록된 노선이 그중 어느 이름 밑에 잡혀있는지 사용자가 알 방법이 없으므로,
-  // select에서 고른 하나가 아니라 검색된 전체 후보의 ID를 다 합쳐서 조회한다.
-  if (!EXP_DEP.length || !EXP_ARR.length) { setStatus("출발·도착 터미널을 먼저 검색하세요.", true); return; }
+  // 검색 후보가 여러 개일 때 select에서 고른 것과 다른 이름의 배차가 섞여 나오면
+  // 사용자가 헷갈린다 — select에서 고른 터미널의 ID만 조회한다.
+  if (!dep || !arr) { setStatus("출발·도착 터미널을 먼저 검색해서 선택하세요.", true); return; }
   if (!date) { setStatus("날짜를 선택하세요.", true); return; }
   setStatus("배차 조회 중…");
   $("expSchedule").innerHTML = ""; $("result").classList.add("hidden");
   try {
-    const depIds = EXP_DEP.flatMap(t => t.ids), arrIds = EXP_ARR.flatMap(t => t.ids);
-    EXP_SCHEDULE = await api(`/api/expressSchedule?type=${MODE}&depTerminalId=${encodeURIComponent(depIds.join(","))}&arrTerminalId=${encodeURIComponent(arrIds.join(","))}&date=${date}`);
+    EXP_SCHEDULE = await api(`/api/expressSchedule?type=${MODE}&depTerminalId=${encodeURIComponent(dep.ids.join(","))}&arrTerminalId=${encodeURIComponent(arr.ids.join(","))}&date=${date}`);
     if (EXP_SCHEDULE.length === 0) { setStatus("이 조합으로 예정된 배차가 없습니다.", true); return; }
     EXP_SCHEDULE.forEach((s, i) => {
       const o = document.createElement("option");
